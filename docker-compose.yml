@@ -1,0 +1,250 @@
+name: fraud-pipeline
+
+# Shared environment for all Spark-based services (master, worker, streaming job).
+x-spark-env: &spark-env
+  SPARK_MASTER_URL: spark://spark-master:7077
+  SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+  SPARK_RPC_ENCRYPTION_ENABLED: "no"
+  SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+  PYTHONPATH: /app/src
+
+services:
+  # ---------------------------------------------------------------------------
+  # Event broker (Kafka-compatible)
+  # ---------------------------------------------------------------------------
+  redpanda:
+    image: redpandadata/redpanda:v24.2.5
+    container_name: fraud-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --overprovisioned
+      - --node-id
+      - "0"
+      - --kafka-addr
+      - PLAIN://0.0.0.0:29092
+      - --advertise-kafka-addr
+      - PLAIN://redpanda:29092
+      - --rpc-addr
+      - 0.0.0.0:33145
+      - --advertise-rpc-addr
+      - redpanda:33145
+    ports:
+      - "29092:29092"
+      - "9644:9644"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --exit-when-healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Online feature store
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.4-alpine
+    container_name: fraud-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Experiment tracking + model registry
+  # ---------------------------------------------------------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: fraud-mlflow
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --default-artifact-root
+      - /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Spark cluster (master + worker) for PySpark Structured Streaming
+  # ---------------------------------------------------------------------------
+  spark-master:
+    build:
+      context: ./docker/spark
+    container_name: fraud-spark-master
+    environment:
+      <<: *spark-env
+      SPARK_MODE: master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - delta-lake:/opt/spark/work-dir/delta
+      - ./src:/app/src
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080 > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  spark-worker:
+    build:
+      context: ./docker/spark
+    container_name: fraud-spark-worker
+    environment:
+      <<: *spark-env
+      SPARK_MODE: worker
+      SPARK_WORKER_CORES: "2"
+      SPARK_WORKER_MEMORY: 2g
+    depends_on:
+      - spark-master
+    volumes:
+      - delta-lake:/opt/spark/work-dir/delta
+      - ./src:/app/src
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # PySpark Structured Streaming job (consumes Redpanda -> Delta Lake + Redis)
+  # ---------------------------------------------------------------------------
+  streaming:
+    build:
+      context: ./docker/spark
+    container_name: fraud-streaming
+    environment:
+      <<: *spark-env
+      REDPANDA_BOOTSTRAP_SERVERS: ${REDPANDA_BOOTSTRAP_SERVERS:-redpanda:29092}
+      FRAUD_TOPIC: ${FRAUD_TOPIC:-transactions.raw}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      DELTA_TABLE_PATH: ${DELTA_TABLE_PATH:-/opt/spark/work-dir/delta/transactions}
+      CHECKPOINT_LOCATION: ${CHECKPOINT_LOCATION:-/opt/spark/work-dir/delta/checkpoints/transactions}
+    command:
+      - /opt/bitnami/spark/bin/spark-submit
+      - --master
+      - spark://spark-master:7077
+      - --deploy-mode
+      - client
+      - --conf
+      - spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension
+      - --conf
+      - spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog
+      - --conf
+      - spark.sql.streaming.schemaInference=true
+      - /app/src/streaming/main.py
+    volumes:
+      - delta-lake:/opt/spark/work-dir/delta
+      - ./src:/app/src
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      spark-master:
+        condition: service_healthy
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Low-latency inference service
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: fraud-api
+    environment:
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-fraud-detector}
+      API_HOST: ${API_HOST:-0.0.0.0}
+      API_PORT: ${API_PORT:-8000}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Synthetic transaction producer (generates events into Redpanda)
+  # ---------------------------------------------------------------------------
+  producer:
+    build:
+      context: .
+      dockerfile: docker/producer/Dockerfile
+    container_name: fraud-producer
+    environment:
+      REDPANDA_BOOTSTRAP_SERVERS: ${REDPANDA_BOOTSTRAP_SERVERS:-redpanda:29092}
+      FRAUD_TOPIC: ${FRAUD_TOPIC:-transactions.raw}
+      TRANSACTIONS_PER_SECOND: ${TRANSACTIONS_PER_SECOND:-10}
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+volumes:
+  redpanda-data:
+  redis-data:
+  mlflow-data:
+  delta-lake:
+
+networks:
+  fraud-pipeline:
+    driver: bridge
