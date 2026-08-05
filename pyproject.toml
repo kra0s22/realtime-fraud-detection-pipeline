@@ -1,0 +1,10 @@
+[project]
+name = "realtime-fraud-detection-pipeline"
+version = "0.1.0"
+description = "Event-driven real-time fraud detection pipeline (Redpanda, PySpark, Delta Lake, Redis, FastAPI, MLflow)."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["src"]
