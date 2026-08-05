@@ -1,0 +1,1 @@
+"""Synthetic transaction producer (Redpanda)."""
