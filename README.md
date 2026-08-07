@@ -42,6 +42,34 @@ docker compose up --build
 docker compose logs -f streaming producer
 ```
 
+## Train the Model
+
+Train a classifier and register it in MLflow (`fraud-detector` → stage `Production`):
+
+```bash
+# Pipeline must be running (for MLflow + Redis)
+docker compose up -d
+
+# Run the one-off training job (profiles: train)
+docker compose run --rm train
+
+# Restart the API so it loads the newly registered model
+docker compose restart api
+```
+
+After training, `POST /predict` returns live fraud probabilities using real features from the Redis feature store.
+
+## Run Tests (no local Python required)
+
+```bash
+# Build the test image once (pyspark + test deps)
+docker build -t fraud-pipeline-test -f docker/test/Dockerfile .
+
+# Run the whole suite
+docker run --rm -v "${PWD}:/app" -w /app --user root --entrypoint bash fraud-pipeline-test \
+  -c "PYTHONPATH=/app/src python -m pytest tests -q --disable-warnings"
+```
+
 | Service        | Endpoint                                  |
 |----------------|-------------------------------------------|
 | FastAPI        | http://localhost:8000                     |
@@ -59,7 +87,9 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 ├── docker/                  # Container definitions per service
 │   ├── api/                 # FastAPI inference image
 │   ├── producer/            # Transaction generator image
-│   └── spark/               # Spark image with Delta Lake + Kafka jars
+│   ├── spark/               # Spark image with Delta Lake + Kafka jars
+│   ├── train/               # Model training image (MLflow + scikit-learn)
+│   └── test/                # Dev image for running the pytest suite
 ├── src/
 │   ├── producer/            # Event producer (Redpanda)
 │   ├── streaming/           # PySpark Structured Streaming job

@@ -9,6 +9,7 @@ import pandas as pd
 from api.config import ApiSettings
 from api.schemas import PredictRequest, PredictResponse
 from features.store import FeatureStore
+from ml.features import FEATURE_COLUMNS
 
 logger = logging.getLogger("api.inference")
 
@@ -59,9 +60,11 @@ class FraudDetector:
 
     @staticmethod
     def _feature_vector(request: PredictRequest, features: dict) -> dict:
-        return {
+        # Column order must match FEATURE_COLUMNS used at training time.
+        source = {
             "amount": request.amount,
             "channel": request.channel,
             "country": request.country,
             **features,
         }
+        return {column: source[column] for column in FEATURE_COLUMNS}

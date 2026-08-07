@@ -28,3 +28,6 @@ Thumbs.db
 
 # Github
 .github/
+
+# Local learning guide (personal, not versioned)
+LEARNING.md

@@ -209,6 +209,9 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app/src
+      # MLflow stores model artifacts at /mlflow/artifacts; the API needs
+      # write access because load_model writes a registered_model_meta file.
+      - mlflow-data:/mlflow
     depends_on:
       redis:
         condition: service_healthy
@@ -236,6 +239,32 @@ services:
       redpanda:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
+  # Model training job (run on demand: docker compose run --rm train)
+  # ---------------------------------------------------------------------------
+  train:
+    build:
+      context: .
+      dockerfile: docker/train/Dockerfile
+    container_name: fraud-train
+    profiles: ["train"]
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-fraud-detector}
+      TRAIN_N_TRANSACTIONS: ${TRAIN_N_TRANSACTIONS:-20000}
+      FRAUD_RATE: ${FRAUD_RATE:-0.02}
+      SEED: ${SEED:-42}
+    volumes:
+      - ./src:/app/src
+      # MLflow stores artifacts at /mlflow/artifacts; the train client writes
+      # there so the API can load the model from the same shared volume.
+      - mlflow-data:/mlflow
+    depends_on:
+      mlflow:
+        condition: service_healthy
     networks:
       - fraud-pipeline
 
