@@ -44,7 +44,7 @@ docker compose logs -f streaming producer
 
 ## Train the Model
 
-Train a classifier and register it in MLflow (`fraud-detector` → stage `Production`):
+Train a classifier and register it in MLflow (`fraud-detector` → alias `Production`):
 
 ```bash
 # Pipeline must be running (for MLflow + Redis)

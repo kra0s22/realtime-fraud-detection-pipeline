@@ -89,8 +89,9 @@ def train_and_register(settings: MlSettings) -> dict:
         model_uri = f"runs:/{mlflow.active_run().info.run_id}/model"
         registered = mlflow.register_model(model_uri, settings.mlflow_model_name)
         client = mlflow.tracking.MlflowClient()
-        client.transition_model_version_stage(
-            settings.mlflow_model_name, registered.version, "Production"
+        # Aliases replace the deprecated registry stages (removed in a future MLflow release).
+        client.set_registered_model_alias(
+            settings.mlflow_model_name, "Production", registered.version
         )
 
     logger.info(

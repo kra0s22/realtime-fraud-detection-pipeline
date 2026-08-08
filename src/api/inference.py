@@ -35,7 +35,7 @@ class FraudDetector:
         try:
             mlflow.set_tracking_uri(self._settings.mlflow_tracking_uri)
             self._model = mlflow.pyfunc.load_model(
-                f"models:/{self._settings.mlflow_model_name}/Production"
+                f"models:/{self._settings.mlflow_model_name}@Production"
             )
             logger.info("Loaded model '%s' from MLflow", self._settings.mlflow_model_name)
         except Exception as exc:  # registry may be unreachable on first boot

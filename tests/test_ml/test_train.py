@@ -41,4 +41,4 @@ def test_train_and_register_logs_to_local_mlflow(tmp_path):
     client = mlflow.tracking.MlflowClient()
     versions = client.search_model_versions(f"name='{settings.mlflow_model_name}'")
     assert len(versions) >= 1
-    assert versions[0].current_stage == "Production"
+    assert "Production" in versions[0].aliases
