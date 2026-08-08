@@ -26,8 +26,8 @@ mlartifacts/
 .DS_Store
 Thumbs.db
 
-# Github
-.github/
+# Github (keep copilot-instructions local, but version workflows/)
+.github/copilot-instructions.md
 
 # Local learning guide (personal, not versioned)
 LEARNING.md

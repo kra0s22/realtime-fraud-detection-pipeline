@@ -1,5 +1,7 @@
 # Realtime Fraud Detection Pipeline
 
+[![CI](https://github.com/kra0s22/realtime-fraud-detection-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/kra0s22/realtime-fraud-detection-pipeline/actions/workflows/ci.yml)
+
 Event-driven, real-time fraud detection system combining stream processing, an online feature store, and low-latency model inference.
 
 ## Architecture

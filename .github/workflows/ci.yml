@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Run the test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Spark base image
+        run: docker build -t fraud-pipeline-spark-master -f docker/spark/Dockerfile docker/spark
+
+      - name: Build test image
+        run: docker build -t fraud-pipeline-test -f docker/test/Dockerfile .
+
+      - name: Run pytest
+        run: >
+          docker run --rm -v "$PWD:/app" -w /app --user root
+          --entrypoint bash fraud-pipeline-test
+          -c "PYTHONPATH=/app/src python -m pytest tests -q --disable-warnings"
+
+  build:
+    name: Validate compose + build all images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build service images
+        run: docker compose build
+
+      # The train service is behind a profile, so build it explicitly.
+      - name: Build training image
+        run: docker build -t fraud-pipeline-train -f docker/train/Dockerfile .
