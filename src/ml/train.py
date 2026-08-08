@@ -47,6 +47,14 @@ def build_pipeline() -> Pipeline:
     )
 
 
+def ensure_experiment() -> str:
+    """Return the fraud-detection experiment id, creating it if needed."""
+    experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+    if experiment is None:
+        return mlflow.create_experiment(EXPERIMENT_NAME)
+    return experiment.experiment_id
+
+
 def train_and_register(settings: MlSettings) -> dict:
     """Train the model, log it to MLflow, and promote it to Production."""
     frame = build_training_frame(
@@ -66,11 +74,7 @@ def train_and_register(settings: MlSettings) -> dict:
     metrics = evaluate(pipeline, x_test, y_test)
 
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
-    experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
-    if experiment is None:
-        experiment_id = mlflow.create_experiment(EXPERIMENT_NAME)
-    else:
-        experiment_id = experiment.experiment_id
+    experiment_id = ensure_experiment()
 
     with mlflow.start_run(experiment_id=experiment_id, run_name="fraud-detector-training"):
         mlflow.log_params(

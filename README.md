@@ -66,6 +66,20 @@ docker compose restart api
 
 After training, `POST /predict` returns live fraud probabilities using real features from the Redis feature store.
 
+## Monitor the Model
+
+Evaluate the Production model against fresh data and log metrics to MLflow:
+
+```bash
+# Pipeline must be running (for MLflow)
+docker compose up -d
+
+# Run the one-off monitoring job (profiles: monitor)
+docker compose run --rm evaluate
+```
+
+The `fraud-detector-monitoring` run records accuracy, precision, recall, F1 and ROC-AUC so you can track model quality over time.
+
 ## Run Tests (no local Python required)
 
 ```bash

@@ -299,6 +299,31 @@ services:
     networks:
       - fraud-pipeline
 
+  # ---------------------------------------------------------------------------
+  # Model monitoring job (run on demand: docker compose run --rm evaluate)
+  # ---------------------------------------------------------------------------
+  evaluate:
+    build:
+      context: .
+      dockerfile: docker/train/Dockerfile
+    container_name: fraud-evaluate
+    profiles: ["monitor"]
+    command: ["python", "-m", "ml.monitor"]
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-fraud-detector}
+      TRAIN_N_TRANSACTIONS: ${TRAIN_N_TRANSACTIONS:-20000}
+      FRAUD_RATE: ${FRAUD_RATE:-0.02}
+      SEED: ${SEED:-42}
+    volumes:
+      - ./src:/app/src
+      - mlflow-data:/mlflow
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - fraud-pipeline
+
 volumes:
   redpanda-data:
   redis-data:
