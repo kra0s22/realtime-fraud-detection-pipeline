@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from ml.config import MlSettings
 from ml.evaluate import evaluate
-from ml.features import FEATURE_COLUMNS, build_training_frame
+from ml.features import FEATURE_COLUMNS, build_training_frame, frame_from_delta
 
 logger = logging.getLogger("ml.train")
 
@@ -55,13 +55,25 @@ def ensure_experiment() -> str:
     return experiment.experiment_id
 
 
-def train_and_register(settings: MlSettings) -> dict:
-    """Train the model, log it to MLflow, and promote it to Production."""
-    frame = build_training_frame(
+def _load_training_data(settings: MlSettings):
+    """Prefer accumulated Delta data, falling back to synthetic generation."""
+    if settings.train_use_delta and settings.delta_table_path:
+        try:
+            frame = frame_from_delta(settings.delta_table_path)
+            logger.info("Training on %d records from Delta Lake", len(frame))
+            return frame
+        except Exception as exc:
+            logger.warning("Delta training data unavailable (%s); using synthetic", exc)
+    return build_training_frame(
         n_transactions=settings.n_transactions,
         fraud_rate=settings.fraud_rate,
         seed=settings.seed,
     )
+
+
+def train_and_register(settings: MlSettings) -> dict:
+    """Train the model, log it to MLflow, and promote it to Production."""
+    frame = _load_training_data(settings)
     x = frame[FEATURE_COLUMNS]
     y = frame["is_fraud"]
 

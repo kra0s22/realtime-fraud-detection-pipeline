@@ -54,7 +54,7 @@ docker compose logs -f streaming producer
 Train a classifier and register it in MLflow (`fraud-detector` → alias `Production`):
 
 ```bash
-# Pipeline must be running (for MLflow + Redis)
+# Pipeline must be running (for MLflow + Redis + the accumulated Delta table)
 docker compose up -d
 
 # Run the one-off training job (profiles: train)
@@ -64,7 +64,7 @@ docker compose run --rm train
 docker compose restart api
 ```
 
-After training, `POST /predict` returns live fraud probabilities using real features from the Redis feature store.
+Training reads the transactions accumulated in **Delta Lake**; it falls back to synthetic data only if the table is unavailable.
 
 ## Monitor the Model
 

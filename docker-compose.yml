@@ -288,11 +288,15 @@ services:
       TRAIN_N_TRANSACTIONS: ${TRAIN_N_TRANSACTIONS:-20000}
       FRAUD_RATE: ${FRAUD_RATE:-0.02}
       SEED: ${SEED:-42}
+      TRAIN_USE_DELTA: ${TRAIN_USE_DELTA:-true}
+      DELTA_TABLE_PATH: ${DELTA_TABLE_PATH:-/opt/spark/work-dir/delta/transactions}
     volumes:
       - ./src:/app/src
       # MLflow stores artifacts at /mlflow/artifacts; the train client writes
       # there so the API can load the model from the same shared volume.
       - mlflow-data:/mlflow
+      # Accumulated transactions for batch training from the lake.
+      - delta-lake:/opt/spark/work-dir/delta
     depends_on:
       mlflow:
         condition: service_healthy

@@ -42,3 +42,19 @@ def test_train_and_register_logs_to_local_mlflow(tmp_path):
     versions = client.search_model_versions(f"name='{settings.mlflow_model_name}'")
     assert len(versions) >= 1
     assert "Production" in versions[0].aliases
+
+
+def test_train_and_register_uses_delta_when_available(tmp_path, monkeypatch):
+    settings = _local_settings(tmp_path)
+    frame = build_training_frame(n_transactions=400, fraud_rate=0.1, seed=3)
+    monkeypatch.setattr("ml.train.frame_from_delta", lambda path: frame)
+    metrics = train_and_register(settings)
+    assert "roc_auc" in metrics
+
+
+def test_train_and_register_falls_back_on_bad_delta(tmp_path):
+    settings = _local_settings(tmp_path)
+    settings.delta_table_path = str(tmp_path / "missing")
+    settings.train_use_delta = True
+    metrics = train_and_register(settings)
+    assert "roc_auc" in metrics

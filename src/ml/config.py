@@ -27,3 +27,8 @@ class MlSettings(BaseSettings):
     test_size: float = Field(
         default=0.2, alias="TRAIN_TEST_SIZE", gt=0.0, lt=1.0
     )
+    delta_table_path: str | None = Field(
+        default="/opt/spark/work-dir/delta/transactions",
+        alias="DELTA_TABLE_PATH",
+    )
+    train_use_delta: bool = Field(default=True, alias="TRAIN_USE_DELTA")
