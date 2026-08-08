@@ -10,11 +10,15 @@ Event-driven, real-time fraud detection system combining stream processing, an o
 flowchart LR
     P[Transaction Producer] -->|transactions.raw| RP[(Redpanda)]
     RP --> SS[PySpark Structured Streaming]
+    RP --> AL[Fraud Alerter]
     SS -->|features| RD[(Redis Feature Store)]
     SS --> DL[(Delta Lake)]
     DL --> TR[Model Training]
     TR --> MLF[MLflow Registry]
     MLF --> API[FastAPI Inference]
+    MLF --> AL
+    AL -->|transactions.alerts| RP
+    AL -->|recent alerts| RD
     API --> RD
     API -->|prediction| CL[Client]
 ```
@@ -28,6 +32,7 @@ flowchart LR
 | Delta Lake                 | Versioned storage of raw + enriched transactions                   |
 | Redis                      | Online feature store for low-latency feature lookups               |
 | FastAPI                    | Synchronous inference endpoint                                     |
+| Fraud Alerter              | Stream-scored alerts for suspicious transactions (event-driven)    |
 | MLflow                     | Experiment tracking + model registry                               |
 | Docker Compose             | Local single-host orchestration of the full pipeline              |
 
@@ -89,6 +94,7 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 ├── docker/                  # Container definitions per service
 │   ├── api/                 # FastAPI inference image
 │   ├── producer/            # Transaction generator image
+│   ├── alerter/             # Fraud alerter image
 │   ├── spark/               # Spark image with Delta Lake + Kafka jars
 │   ├── train/               # Model training image (MLflow + scikit-learn)
 │   └── test/                # Dev image for running the pytest suite
@@ -97,7 +103,8 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 │   ├── streaming/           # PySpark Structured Streaming job
 │   ├── features/            # Feature store (Redis) client
 │   ├── api/                 # FastAPI inference service
-│   └── ml/                  # Model training / registry (MLflow)
+│   ├── ml/                  # Model training / registry (MLflow)
+│   └── alerter/             # Realtime fraud alerting (stream scoring)
 ├── tests/                   # pytest suites (unit + integration)
 ├── docker-compose.yml       # Local pipeline orchestration
 └── pyproject.toml           # Project metadata + pytest config

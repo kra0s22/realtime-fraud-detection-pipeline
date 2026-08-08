@@ -1,8 +1,11 @@
 """Redis-backed online feature store shared by the streaming job and the API."""
 
+import json
 import time
 
 import redis
+
+_ALERTS_KEY = "fraud:alerts"
 
 
 class FeatureStore:
@@ -56,6 +59,16 @@ class FeatureStore:
             "tx_total": total,
             "tx_avg": round(total / count, 2) if count else 0.0,
         }
+
+    def push_alert(self, alert: dict, maxlen: int = 100) -> None:
+        """Store a fraud alert in the recent-alerts list, kept to maxlen items."""
+        self._client.lpush(_ALERTS_KEY, json.dumps(alert, default=str))
+        self._client.ltrim(_ALERTS_KEY, 0, maxlen - 1)
+
+    def list_alerts(self, limit: int = 100) -> list:
+        """Return the most recent fraud alerts, newest first."""
+        raw = self._client.lrange(_ALERTS_KEY, 0, limit - 1)
+        return [json.loads(item) for item in raw]
 
     def _card_key(self, card_id: str) -> str:
         return f"fraud:card:{card_id}:txs"

@@ -3,5 +3,5 @@ fakeredis
 fastapi==0.115.6
 httpx
 mlflow==2.17.2
-confluent-kafka==2.6.0
+confluent-kafka==2.4.0
 scikit-learn==1.5.2

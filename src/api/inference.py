@@ -2,14 +2,13 @@
 
 import logging
 
-import mlflow
-import mlflow.pyfunc
 import pandas as pd
 
 from api.config import ApiSettings
 from api.schemas import PredictRequest, PredictResponse
 from features.store import FeatureStore
 from ml.features import FEATURE_COLUMNS
+from ml.serving import load_production_model
 
 logger = logging.getLogger("api.inference")
 
@@ -33,9 +32,8 @@ class FraudDetector:
 
     def _load_model(self) -> None:
         try:
-            mlflow.set_tracking_uri(self._settings.mlflow_tracking_uri)
-            self._model = mlflow.pyfunc.load_model(
-                f"models:/{self._settings.mlflow_model_name}@Production"
+            self._model = load_production_model(
+                self._settings.mlflow_tracking_uri, self._settings.mlflow_model_name
             )
             logger.info("Loaded model '%s' from MLflow", self._settings.mlflow_model_name)
         except Exception as exc:  # registry may be unreachable on first boot

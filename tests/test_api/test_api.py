@@ -49,3 +49,23 @@ def test_predict_rejects_invalid_payload(client):
     }
     response = client.post("/predict", json=payload)
     assert response.status_code == 422
+
+
+def test_alerts_returns_recent_alerts(client, monkeypatch):
+    import fakeredis
+
+    import api.main as api_main
+    from features.store import FeatureStore
+
+    store = FeatureStore(
+        host="localhost",
+        port=6379,
+        client=fakeredis.FakeRedis(decode_responses=True),
+    )
+    store.push_alert({"transaction_id": "tx-a", "fraud_probability": 0.9})
+    monkeypatch.setattr(api_main, "feature_store", store)
+
+    response = client.get("/alerts")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["transaction_id"] == "tx-a"

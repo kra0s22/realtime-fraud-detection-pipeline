@@ -243,6 +243,37 @@ services:
       - fraud-pipeline
 
   # ---------------------------------------------------------------------------
+  # Realtime fraud alerter (scores the raw stream and publishes alerts)
+  # ---------------------------------------------------------------------------
+  alerter:
+    build:
+      context: .
+      dockerfile: docker/alerter/Dockerfile
+    container_name: fraud-alerter
+    environment:
+      REDPANDA_BOOTSTRAP_SERVERS: ${REDPANDA_BOOTSTRAP_SERVERS:-redpanda:29092}
+      FRAUD_TOPIC: ${FRAUD_TOPIC:-transactions.raw}
+      ALERTS_TOPIC: ${ALERTS_TOPIC:-transactions.alerts}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-fraud-detector}
+      ALERT_THRESHOLD: ${ALERT_THRESHOLD:-0.5}
+    volumes:
+      - ./src:/app/src
+      - mlflow-data:/mlflow
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fraud-pipeline
+
+  # ---------------------------------------------------------------------------
   # Model training job (run on demand: docker compose run --rm train)
   # ---------------------------------------------------------------------------
   train:
