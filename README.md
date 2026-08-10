@@ -266,3 +266,7 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 ├── docker-compose.yml       # Local pipeline orchestration
 └── pyproject.toml           # Project metadata + pytest config
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
