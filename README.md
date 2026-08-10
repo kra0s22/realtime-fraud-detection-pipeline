@@ -12,7 +12,7 @@ Event-driven, real-time fraud detection system combining stream processing, an o
 - **ML lifecycle** — MLflow experiment tracking, model registry, production promotion and monitoring
 - **Pluggable models** — train any registered classifier via config (`MODEL_TYPE` / `REAL_MODEL_TYPE`) with no code changes; scoring is estimator-agnostic via MLflow pyfunc
 - **Online + batch inference** — FastAPI `/predict` for interactive requests; `python -m ml.batch` for offline scoring of any registered model
-- **Tested** — 40+ `pytest` cases and CI on GitHub Actions
+- **Tested** — 66 `pytest` cases and CI on GitHub Actions
 - **Single command** — fully Dockerized, `docker compose up` runs the whole pipeline
 
 ## Architecture
