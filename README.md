@@ -54,6 +54,7 @@ For the reasoning behind these choices (Redpanda vs Kafka, baked jars, feature-c
 | FastAPI                    | Synchronous inference endpoint                                     |
 | Fraud Alerter              | Stream-scored alerts for suspicious transactions (event-driven)    |
 | MLflow                     | Experiment tracking + model registry                               |
+| Model monitoring           | One-off evaluation job logging quality metrics to MLflow           |
 | Docker Compose             | Local single-host orchestration of the full pipeline              |
 
 ## Demo Screenshots
@@ -112,6 +113,8 @@ Live captures of the pipeline running locally with Docker Compose.
 Latency measured over 25 requests on Docker Desktop (localhost); absolute numbers improve on bare-metal deployments.
 
 ## Quickstart
+
+Requires **Docker** with Docker Compose (the test suite runs entirely inside a container — no local Python needed).
 
 ```bash
 # 1. (Optional) Customize configuration
@@ -255,7 +258,8 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 │   ├── ml/                  # Model training / registry (MLflow)
 │   │   ├── train.py         # Live-demo training (Delta / synthetic)
 │   │   ├── real.py          # Real-world dataset training (any CSV)
-│   │   └── models.py        # Pluggable classifier registry
+│   │   ├── models.py        # Pluggable classifier registry
+│   │   └── batch.py         # Batch scoring for any registered model
 │   └── alerter/             # Realtime fraud alerting (stream scoring)
 ├── tests/                   # pytest suites (unit + integration)
 ├── docs/ARCHITECTURE.md     # Design decisions and trade-offs deep dive
