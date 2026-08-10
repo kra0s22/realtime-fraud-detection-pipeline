@@ -41,11 +41,12 @@ def _store():
 
 
 def _settings():
+    # Alias kwargs override the repo .env (by-name kwargs lose to env values).
     return AlerterSettings(
-        bootstrap_servers="localhost:9092",
-        redis_host="localhost",
-        mlflow_tracking_uri="http://localhost:5000",
-        mlflow_model_name="test-model",
+        REDPANDA_BOOTSTRAP_SERVERS="localhost:9092",
+        REDIS_HOST="localhost",
+        MLFLOW_TRACKING_URI="http://localhost:5000",
+        MLFLOW_MODEL_NAME="test-model",
     )
 
 

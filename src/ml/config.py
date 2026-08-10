@@ -51,3 +51,17 @@ class MlSettings(BaseSettings):
         default=None, alias="REAL_FEATURE_COLUMNS"
     )
     real_label_column: str = Field(default="Class", alias="REAL_LABEL_COLUMN")
+    # Batch scoring (src/ml/batch.py)
+    batch_input_path: str | None = Field(default=None, alias="BATCH_INPUT_PATH")
+    batch_output_path: str | None = Field(default=None, alias="BATCH_OUTPUT_PATH")
+    batch_model_name: str | None = Field(default=None, alias="BATCH_MODEL_NAME")
+    batch_alias: str = Field(default="Production", alias="BATCH_ALIAS")
+    batch_threshold: float = Field(
+        default=0.5, alias="BATCH_THRESHOLD", ge=0.0, le=1.0
+    )
+    batch_feature_columns: str | None = Field(
+        default=None, alias="BATCH_FEATURE_COLUMNS"
+    )
+    batch_build_features: bool = Field(
+        default=False, alias="BATCH_BUILD_FEATURES"
+    )

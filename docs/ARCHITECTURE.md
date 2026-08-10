@@ -159,6 +159,12 @@ An event-driven consumer that scores every transaction with the same Production 
 
 A one-off job (`docker compose run --rm evaluate`) loads the Production model, scores it against fresh accumulated data, and logs accuracy, precision, recall, F1 and ROC-AUC to the `fraud-detector-monitoring` run in MLflow. It closes the ML observability loop: after training and registration, model quality can be tracked over time without touching the serving path.
 
+### 3.9 Batch scoring
+
+Beyond the online `/predict` endpoint, a batch scorer (`python -m ml.batch`) runs any registered model over a CSV of features and writes `fraud_probability` + `is_fraud`. It resolves the model's input columns from the `feature_columns` contract logged at training time, so the same command works for the live model, the real-data model, or any model the user registers. For the live model, raw transactions can be scored directly by computing velocity features on the fly (`BATCH_BUILD_FEATURES`).
+
+This makes the serving story symmetric: online scoring via the API for interactive requests, offline scoring via the batch job for backfills and bulk analysis.
+
 ---
 
 ## 4. Key design decisions

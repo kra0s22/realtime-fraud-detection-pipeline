@@ -11,6 +11,7 @@ Event-driven, real-time fraud detection system combining stream processing, an o
 - **Streaming features** — PySpark Structured Streaming + Delta Lake for reliable, versioned stream processing
 - **ML lifecycle** — MLflow experiment tracking, model registry, production promotion and monitoring
 - **Pluggable models** — train any registered classifier via config (`MODEL_TYPE` / `REAL_MODEL_TYPE`) with no code changes; scoring is estimator-agnostic via MLflow pyfunc
+- **Online + batch inference** — FastAPI `/predict` for interactive requests; `python -m ml.batch` for offline scoring of any registered model
 - **Tested** — 40+ `pytest` cases and CI on GitHub Actions
 - **Single command** — fully Dockerized, `docker compose up` runs the whole pipeline
 
@@ -169,6 +170,36 @@ docker compose run --rm \
 Metrics are logged to MLflow (experiment `fraud-detection-real`) and the model is registered with its feature contract (`feature_columns`, `label_column`), so the same estimator-agnostic scoring path can serve it as long as the API's input schema matches.
 
 > Numeric features work out of the box; categorical features would need preprocessing (out of scope here).
+
+## Batch Prediction
+
+Score any registered model over a CSV of features and write fraud probabilities:
+
+```bash
+# Pipeline must be running (for MLflow)
+docker compose up -d
+
+docker compose run --rm \
+  -e BATCH_MODEL_NAME=fraud-detector-real \
+  -e BATCH_INPUT_PATH=/app/data/features.csv \
+  -e BATCH_OUTPUT_PATH=/app/data/predictions.csv \
+  -v "${PWD}/data:/app/data" \
+  train python -m ml.batch
+```
+
+The model's expected input columns are read automatically from the `feature_columns` contract logged at training time, so the same command works for the live model (`fraud-detector`), the real-data model (`fraud-detector-real`), or any registered model. Override with `BATCH_FEATURE_COLUMNS` if needed, and adjust the decision threshold with `BATCH_THRESHOLD`.
+
+> For the live model, raw transactions can be scored directly with `BATCH_BUILD_FEATURES=true` — velocity features are computed the same way as in training.
+
+| Variable                | Default         | Description                                       |
+|-------------------------|-----------------|---------------------------------------------------|
+| `BATCH_MODEL_NAME`      | `fraud-detector` | Model to score (or any registered model)          |
+| `BATCH_ALIAS`           | `Production`    | Registry alias to resolve                         |
+| `BATCH_INPUT_PATH`      | —               | Input CSV (features)                              |
+| `BATCH_OUTPUT_PATH`     | —               | Output CSV with `fraud_probability` + `is_fraud`  |
+| `BATCH_THRESHOLD`       | `0.5`           | Fraud decision threshold                          |
+| `BATCH_FEATURE_COLUMNS` | —               | Override feature columns (else read from model)   |
+| `BATCH_BUILD_FEATURES`  | `false`         | Build velocity features from raw transactions     |
 
 ## Monitor the Model
 

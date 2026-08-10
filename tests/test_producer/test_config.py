@@ -7,7 +7,7 @@ from producer.config import ProducerSettings
 
 
 def test_defaults():
-    settings = ProducerSettings(bootstrap_servers="localhost:9092")
+    settings = ProducerSettings(_env_file=None, bootstrap_servers="localhost:9092")
     assert settings.topic == "transactions.raw"
     assert settings.transactions_per_second == 10.0
     assert settings.fraud_rate == 0.02
@@ -31,6 +31,7 @@ def test_env_overrides(monkeypatch):
 
 def test_field_names_accepted_programmatically():
     settings = ProducerSettings(
+        _env_file=None,
         bootstrap_servers="localhost:9092",
         max_transactions=3,
         transactions_per_second=1000.0,
@@ -41,4 +42,4 @@ def test_field_names_accepted_programmatically():
 
 def test_invalid_fraud_rate_rejected():
     with pytest.raises(ValidationError):
-        ProducerSettings(bootstrap_servers="localhost:9092", fraud_rate=1.5)
+        ProducerSettings(_env_file=None, bootstrap_servers="localhost:9092", fraud_rate=1.5)
