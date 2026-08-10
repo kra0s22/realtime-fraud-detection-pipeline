@@ -33,6 +33,8 @@ flowchart LR
     API -->|prediction| CL[Client]
 ```
 
+For the reasoning behind these choices (Redpanda vs Kafka, baked jars, feature-contract design, pluggable models, streaming semantics), see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## How it works
 
 1. **Ingest** — the producer publishes synthetic card transactions to Redpanda (`transactions.raw`).
@@ -123,7 +125,7 @@ docker compose logs -f streaming producer
 
 ## Train the Model
 
-Train a classifier and register it in MLflow (`fraud-detector` → alias `Production`):
+Train a classifier and register it in MLflow (`fraud-detector` -> alias `Production`):
 
 ```bash
 # Pipeline must be running (for MLflow + Redis + the accumulated Delta table)
@@ -225,6 +227,7 @@ Stop everything with `docker compose down` (add `-v` to also drop data volumes).
 │   │   └── models.py        # Pluggable classifier registry
 │   └── alerter/             # Realtime fraud alerting (stream scoring)
 ├── tests/                   # pytest suites (unit + integration)
+├── docs/ARCHITECTURE.md     # Design decisions and trade-offs deep dive
 ├── docker-compose.yml       # Local pipeline orchestration
 └── pyproject.toml           # Project metadata + pytest config
 ```
