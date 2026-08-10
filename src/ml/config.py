@@ -32,3 +32,22 @@ class MlSettings(BaseSettings):
         alias="DELTA_TABLE_PATH",
     )
     train_use_delta: bool = Field(default=True, alias="TRAIN_USE_DELTA")
+    real_data_path: str | None = Field(
+        default="/app/data/creditcard.csv", alias="REAL_DATA_PATH"
+    )
+    real_model_name: str = Field(
+        default="fraud-detector-real", alias="REAL_MODEL_NAME"
+    )
+    # Live-demo (synthetic) model type; any CLASSIFIERS entry is valid.
+    model_type: str = Field(
+        default="logistic_regression", alias="MODEL_TYPE"
+    )
+    # Real-data model type; random forest handles the ~0.17% fraud rate best.
+    real_model_type: str = Field(
+        default="random_forest", alias="REAL_MODEL_TYPE"
+    )
+    # Comma-separated feature columns for the real dataset; None -> UCI default.
+    real_feature_columns: str | None = Field(
+        default=None, alias="REAL_FEATURE_COLUMNS"
+    )
+    real_label_column: str = Field(default="Class", alias="REAL_LABEL_COLUMN")

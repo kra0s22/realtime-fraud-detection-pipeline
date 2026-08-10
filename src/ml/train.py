@@ -5,7 +5,6 @@ import logging
 import mlflow
 import mlflow.pyfunc
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -13,6 +12,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from ml.config import MlSettings
 from ml.evaluate import evaluate
 from ml.features import FEATURE_COLUMNS, build_training_frame, frame_from_delta
+from ml.models import build_classifier
 
 logger = logging.getLogger("ml.train")
 
@@ -31,7 +31,7 @@ class FraudProbabilityModel(mlflow.pyfunc.PythonModel):
         return self._pipeline.predict_proba(model_input)[:, 1]
 
 
-def build_pipeline() -> Pipeline:
+def build_pipeline(model_type: str = "logistic_regression") -> Pipeline:
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", StandardScaler(), _NUMERIC),
@@ -42,7 +42,7 @@ def build_pipeline() -> Pipeline:
         steps=[
             ("preprocess", preprocessor),
             # class_weight balances the heavily skewed fraud rate.
-            ("clf", LogisticRegression(max_iter=1000, class_weight="balanced")),
+            ("clf", build_classifier(model_type)),
         ]
     )
 
@@ -81,7 +81,7 @@ def train_and_register(settings: MlSettings) -> dict:
         x, y, test_size=settings.test_size, random_state=settings.seed, stratify=y
     )
 
-    pipeline = build_pipeline()
+    pipeline = build_pipeline(settings.model_type)
     pipeline.fit(x_train, y_train)
     metrics = evaluate(pipeline, x_test, y_test)
 
@@ -93,7 +93,8 @@ def train_and_register(settings: MlSettings) -> dict:
             {
                 "n_transactions": settings.n_transactions,
                 "fraud_rate": settings.fraud_rate,
-                "model": "logistic_regression",
+                "model": settings.model_type,
+                "feature_columns": ",".join(FEATURE_COLUMNS),
             }
         )
         mlflow.log_metrics(metrics)

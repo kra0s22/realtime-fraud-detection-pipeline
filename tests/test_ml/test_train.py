@@ -13,13 +13,14 @@ from ml.train import FraudProbabilityModel, build_pipeline, train_and_register  
 
 
 def _local_settings(tmp_path) -> MlSettings:
+    # Alias kwargs override the repo .env (by-name kwargs lose to env values).
     return MlSettings(
-        mlflow_tracking_uri=f"file://{tmp_path}",
-        mlflow_model_name="test-fraud-model",
-        n_transactions=800,
-        fraud_rate=0.1,
-        seed=5,
-        test_size=0.25,
+        MLFLOW_TRACKING_URI=f"file://{tmp_path}",
+        MLFLOW_MODEL_NAME="test-fraud-model",
+        TRAIN_N_TRANSACTIONS=800,
+        FRAUD_RATE=0.1,
+        SEED=5,
+        TRAIN_TEST_SIZE=0.25,
     )
 
 
