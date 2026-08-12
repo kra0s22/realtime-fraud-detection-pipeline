@@ -50,17 +50,13 @@ def test_parse_drops_malformed_and_bad_timestamps(spark):
     raw = _kafka_frame(
         spark,
         [
-            (b"not-json",),
-            (
-                b'{"transaction_id":"tx-2","timestamp":"2026-08-05T13:00:00.000000Z",'
-                b'"user_id":"u1","card_id":"c1","merchant_id":"m1","amount":20.0,'
-                b'"currency":"EUR","country":"DE","channel":"pos"}'
-            ),
-            (
-                b'{"transaction_id":"tx-3","timestamp":"not-a-date",'
-                b'"user_id":"u1","card_id":"c1","merchant_id":"m1","amount":30.0,'
-                b'"currency":"EUR","country":"DE","channel":"pos"}'
-            ),
+            b"not-json",
+            b'{"transaction_id":"tx-2","timestamp":"2026-08-05T13:00:00.000000Z",'
+            b'"user_id":"u1","card_id":"c1","merchant_id":"m1","amount":20.0,'
+            b'"currency":"EUR","country":"DE","channel":"pos"}',
+            b'{"transaction_id":"tx-3","timestamp":"not-a-date",'
+            b'"user_id":"u1","card_id":"c1","merchant_id":"m1","amount":30.0,'
+            b'"currency":"EUR","country":"DE","channel":"pos"}',
         ],
     )
     ids = [r.transaction_id for r in parse_transactions(raw).collect()]
