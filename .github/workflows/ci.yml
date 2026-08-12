@@ -9,21 +9,26 @@ jobs:
   test:
     name: Run the test suite
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build Spark base image
-        run: docker build -t fraud-pipeline-spark-master -f docker/spark/Dockerfile docker/spark
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
 
-      - name: Build test image
-        run: docker build -t fraud-pipeline-test -f docker/test/Dockerfile .
+      # PySpark runs in local mode; the runner needs a JVM.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
 
       - name: Run pytest
-        run: >
-          docker run --rm -v "$PWD:/app" -w /app --user root
-          --entrypoint bash fraud-pipeline-test
-          -c "PYTHONPATH=/app/src python -m pytest tests -q --disable-warnings"
+        run: PYTHONPATH=src python -m pytest tests -q --disable-warnings
 
   build:
     name: Validate compose + build all images
@@ -32,12 +37,34 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Validate compose file
         run: docker compose config --quiet
+
+      # The Spark base image is the heavy one; build it with GitHub Actions
+      # layer caching so unchanged layers are reused across runs.
+      - name: Build Spark base image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/spark
+          file: docker/spark/Dockerfile
+          tags: fraud-pipeline-spark-master:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build service images
         run: docker compose build
 
       # The train service is behind a profile, so build it explicitly.
-      - name: Build training image
-        run: docker build -t fraud-pipeline-train -f docker/train/Dockerfile .
+      - name: Build training image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/train/Dockerfile
+          tags: fraud-pipeline-train:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
